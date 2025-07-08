@@ -1,16 +1,51 @@
  # 🎯 Threat-Hunting-Scenario-Lurker
 
  📖 Scenario
+ 
 The last incident was supposed to be over. One machine compromised, the attacker cut off before they could spread — or so we were told.
+
 But something doesn’t sit right.
+
 A new device started acting strangely. At first glance, it mirrored the earlier compromise: same tools, same timing, same surgical precision. Only this time, the logs were cleaner. Too clean. And yet, traces remained — scattered like breadcrumbs that weren’t meant to be found, or perhaps were meant to be followed.
+
 Someone wants us to see this.
+
 What if the first breach was a smokescreen? A proof of concept? What if this is the real operation?
+
 Some say it’s just a red team op. Others whisper it’s something more — a buried framework that’s been lying dormant, waiting for its second trigger.
+
 You’ve been given full access. But not the full story.
+
 🎯 Your job is simple: Prove what really happened.
+
 🧭 Follow the signs. Trust the data. Question everything.
+
 Good luck, hunter.
+
+
+
+##Starting Point
+
+Before you officially begin the flags, you must first determine where to start hunting. Identify where to start hunting with the following intel given: 
+1. Days active 2-3 days
+2. Executions from Temp folder
+3. 15th of June
+
+Identify the first machine to look at*
+
+Query used:
+DeviceProcessEvents
+| where Timestamp between (datetime(2025-06-12T00:00:00Z) .. datetime(2025-06-19T00:00:00Z))
+| where FolderPath contains "Temp"
+| summarize FirstSeen=min(Timestamp), LastSeen=max(Timestamp), Count=count() by DeviceName
+| project DeviceName, FirstSeen, LastSeen, ActiveDays = datetime_diff("day", LastSeen, FirstSeen), Count
+| where ActiveDays >= 1 and ActiveDays <= 3
+| order by FirstSeen asc
+
+**Thought process:** Since the hint was 15th of June, my actual time is different, so I had to look for a machine on 15th of June UTC time. I extended the First seen timestamp to exclude the machines that were there before the 15th of June, I then checked the names and the first and last seen dates, and it led me to either michaelvm or employee- 1257. The rest were the usual names I am used to seeing in the logs.
+
+**Answer: michaelvm**
+
 
 🚩 Flag-by-Flag Breakdown
 🟩 Flag 1 – Initial PowerShell Execution Detection
