@@ -364,10 +364,44 @@ DeviceProcessEvents
 
 <img width="400" src="https://github.com/user-attachments/assets/97c83a1b-8bcc-4b15-ab39-c49512c362cd"/>
 
-**Answer: "801262e122db6a2e758962896f260b55bbd0136a**
+**Answer: 801262e122db6a2e758962896f260b55bbd0136a**
 
 ---
 
+## 🟩 Flag 9 – Registry Persistence Confirmation
+
+**Objective:**
+
+Confirm that persistence was achieved via registry autorun keys.
+
+**What to Hunt:**
+
+Registry path and value that re-executes the attack script.
+
+**Thought:**
+
+Once in the registry, an attacker can survive reboots — making this a prime persistence marker.
+
+ 🕵️ **Provide the value of the registry tied to this particular exploit**
+
+Query used:
+
+```
+DeviceRegistryEvents
+| where DeviceName == "michaelvm"
+| where RegistryKey endswith @"CurrentVersion\Run"
+     or RegistryKey endswith @"CurrentVersion\RunOnce"
+| project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, InitiatingProcessCommandLine
+| order by Timestamp desc
+```
+
+🧠 **Thought process:** I just looked for commands Run or RunOnce within the RegistryKey where these persistence methods usually are, and it gave me the answer.
+
+<img width="800" src="https://github.com/user-attachments/assets/d6ceceae-d855-4dc6-a1ce-4f929e5e9dca"/>
+
+**Answer: HKEY_CURRENT_USER\S-1-5-21-2654874317-2279753822-948688439-500\SOFTWARE\Microsoft\Windows\CurrentVersion\Run**
+
+---
 
 
 
