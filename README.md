@@ -604,7 +604,7 @@ DeviceNetworkEvents
 
 🧠 **Thought process:** I filtered for the remote URLs that I noticed could be a third-party unauthorized cloud service, and I only had 4 IPs to choose from, and in the end, it was the IP of pastebin.com
 
-<img width="400" src="https://github.com/user-attachments/assets/4db9f414-56df-4e73-b30c-cd5d664bae8d"/>
+<img width="500" src="https://github.com/user-attachments/assets/4db9f414-56df-4e73-b30c-cd5d664bae8d"/>
 
 **Answer: 104.22.69.199**
 
@@ -636,7 +636,7 @@ DeviceProcessEvents
 
 🧠 **Thought process:** This was a pretty straightforward flag since the hints gave away what to look for. Once I queried the -Version 2 in the process command line, I had my answer.
 
-<img width="400" src="https://github.com/user-attachments/assets/a501e571-2329-48cf-8df4-edbbb27855ef"/>
+<img width="300" src="https://github.com/user-attachments/assets/a501e571-2329-48cf-8df4-edbbb27855ef"/>
 
 **Answer: 2025-06-18T10:52:59.0847063Z**
 
@@ -668,7 +668,7 @@ DeviceProcessEvents
 
 🧠 **Thought process:** The last flag was, at a glance, very simple, but it had a little twist to it. I found what I was looking for immediately, but I had trouble giving in the right time. The question was set as "identifying the process creation time" and not just a Timestamp. At a glance, these two times look the same, so I always just posted the Timestamp time, but after countless hours of questioning myself, I realized what the question is actually asking for.
 
-<img width="400" src="https://github.com/user-attachments/assets/460a7771-351e-4171-9ef6-dbf9118880ad"/>
+<img width="250" src="https://github.com/user-attachments/assets/460a7771-351e-4171-9ef6-dbf9118880ad"/>
 
 **Answer: 2025-06-18T10:52:33.3030998Z**
 
