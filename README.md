@@ -674,10 +674,12 @@ DeviceProcessEvents
 
 ---
 
-✅ Conclusion
+## ✅ Conclusion
+
 The attacker leveraged native tools and LOLBins to evade detection, accessed high-value documents, and stealthily exfiltrated them while maintaining persistence. The clean logs indicate deliberate obfuscation and anti-forensic effort.
 
-🛡️ Recommendations
+🛡️ **Recommendations**
+
 	•	Block LOLBins like bitsadmin, mshta via AppLocker or WDAC
 	•	Enable script block logging and AMSI
 	•	Monitor for PowerShell downgrade attempts (-Version 2)
