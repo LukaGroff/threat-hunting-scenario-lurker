@@ -135,7 +135,7 @@ DeviceProcessEvents
 | order by Timestamp asc
 ```
 
-🧠 **Thought process:** I figured, since the first thing you do once you get remote access is type whoami, so i searched for that command in the command line. I found a command 'whoami' of which SHA256 was the right answer, BUT upon inspecting the SHA256 for actual clues of recon i used the KQL below to find a lot of clues for example commands like whoami, schtasks and deleting evidence of onedrivesetup. The evidence of the attacker being present was overwhelming.
+🧠 **Thought process:** I figured, since the first thing you do once you get remote access is type whoami, so I searched for that command in the command line. I found a command 'whoami' of which SHA256 was the right answer, BUT upon inspecting the SHA256 for actual clues of recon, I used the KQL below to find a lot of clues for example commands like whoami, schtasks, and deleting evidence of onedrivesetup. The evidence of the attacker being present was overwhelming.
 
 ```
 DeviceProcessEvents
@@ -403,7 +403,276 @@ DeviceRegistryEvents
 
 ---
 
+## 🟩 Flag 10 – Scheduled Task Execution
 
+**Objective:**
+
+Validate the scheduled task that launches the payload.
+
+**What to Hunt:**
+
+Name of the task tied to the attack’s execution flow.
+
+**Thought:**
+
+Even if stealthy, scheduled tasks leave clear creation trails. Look for unfamiliar task names.
+
+ 🕵️ **What is the name of the scheduled task created**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "michaelvm"
+| where FileName =~ "schtasks.exe" and ProcessCommandLine has "/create"
+| project Timestamp, DeviceName, ProcessCommandLine, InitiatingProcessFileName
+| order by Timestamp asc
+```
+
+🧠 **Thought process:** I looked for scheduled tasks and found what I was looking for and more.
+
+<img width="800" src="https://github.com/user-attachments/assets/7af9ea77-36a4-48c3-8bfc-17522bb10838"/>
+
+**Answer: MarketHarvestJob**
+
+---
+
+## 🟩 Flag 11 – Target of Lateral Movement
+
+**Objective:**
+
+Identify the remote machine the attacker pivoted to next.
+
+**What to Hunt:**
+
+Remote system name embedded in command-line activity.
+
+**Thought:**
+
+The attack is expanding. Recognizing lateral targets is key to containment.
+
+ 🕵️ **Drop the next compromised machine name**
+
+Query used: same as flag 10
+
+🧠 **Thought process:** In the previous flag I spotted lateral movement to a different machine as a scheduled task. I also noticed it at flag 2 where I looked into the SHA256.
+
+<img width="800" src="https://github.com/user-attachments/assets/7af9ea77-36a4-48c3-8bfc-17522bb10838"/>
+
+**Answer: centralsrvr**
+
+---
+
+## 🟩 Flag 12 – Lateral Move Timestamp
+
+**Objective:**
+
+Pinpoint the exact time of lateral move to the second system.
+
+**What to Hunt:**
+
+Execution timestamps of commands aimed at the new host.
+
+**Thought:**
+
+Timing matters — it allows us to reconstruct the attack window on the second host.
+
+ 🕵️ **When was the last lateral execution?**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "michaelvm"
+| where ProcessCommandLine has "C2.ps1"
+```
+
+🧠 **Thought process:** From the previous flag, I gathered enough evidence to jump directly to the lateral movement execution with the above query.
+
+<img width="800" src="https://github.com/user-attachments/assets/67306d9b-279b-45a5-83a1-df6a47c916c1"/>
+
+**Answer: 2025-06-17T03:00:49.525038Z**
+
+---
+
+## 🟩 Flag 13 – Sensitive File Access
+
+**Objective:**
+
+Reveal which specific document the attacker was after.
+
+**What to Hunt:**
+
+Verify if the attackers were after a similar file
+
+**Thought:**
+
+The goal is rarely just control — it’s the data. Identifying what they wanted is vital.
+
+**Hint:**
+
+1. Utilize previous findings
+
+ 🕵️ **Provide the standard hash value associated with the file**
+
+Query used:
+
+```
+DeviceFileEvents
+| where DeviceName == "centralsrvr"
+| where FileName == "QuarterlyCryptoHoldings.docx"
+| project Timestamp, FileName, SHA256, FolderPath, InitiatingProcessFileName
+```
+
+🧠 **Thought process:** I assumed, according to the hint, that the file they were after was the same one as in flag 3, so I jumped directly to that file and got the SHA256 of the QuarterlyCryptoHoldings.docx file.
+
+<img width="400" src="https://github.com/user-attachments/assets/58ec4895-d925-4468-b5b2-9c5109d7ffac"/>
+
+**Answer: b4f3a56312dd19064ca89756d96c6e47ca94ce021e36f818224e221754129e98**
+
+---
+
+## 🟩 Flag 14 – Data Exfiltration Attempt
+
+**Objective:**
+
+Validate outbound activity by hashing the process involved.
+
+**What to Hunt:**
+
+Process hash related to exfiltration to common outbound services.
+
+**Thought:**
+
+Exfil isn’t just about the connection — process lineage shows who initiated the theft.
+
+ 🕵️ **Provide the associated MD5 value of the exploit**
+
+Query used:
+
+```
+DeviceNetworkEvents
+| where DeviceName == "centralsrvr"
+| where RemoteIPType == "Public"
+| where RemoteUrl != ""
+| where InitiatingProcessCommandLine contains "exfiltrate"
+| project Timestamp, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessMD5
+```
+
+🧠 **Thought process:** This flag was a little bit of a challenge, but I sifted through a lot of files throughout the hunt, where I found some exfiltratedata.ps1 executables, but was not sure if it was there for just noise or to throw me off. I played around with the KQL to lower the amount of logs shown and found that the above-mentioned executable was actually the one responsible for exfiltration.
+
+<img width="400" src="https://github.com/user-attachments/assets/cb9dd4b7-2e56-47c9-b6fb-09e902e1fcf6"/>
+
+**Answer: 2e5a8590cf6848968fc23de3fa1e25f1**
+
+---
+
+## 🟩 Flag 15 – Destination of Exfiltration
+
+**Objective:**
+
+Identify final IP address used for data exfiltration.
+
+**What to Hunt:**
+
+Remote IPs of known unauthorized cloud services.
+
+**Thought:**
+
+Knowing where data went informs response and informs IR/containment scope.
+
+ 🕵️ **Identify the IP of the last outbound connection attempt**
+
+Query used:
+
+```
+DeviceNetworkEvents
+| where DeviceName == "centralsrvr"
+| where RemoteIPType == "Public"
+| where RemoteUrl != ""
+| where RemoteUrl in~ (
+   "drive.google.com",
+   "dropbox.com",
+   "www.dropbox.com",
+   "pastebin.com",
+   "dw8wjz3q0i4gj.cloudfront.net",
+   "o.ss2.us"
+)
+| project Timestamp, DeviceName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, InitiatingProcessSHA256
+| sort by Timestamp desc
+```
+
+🧠 **Thought process:** I filtered for the remote URLs that I noticed could be a third-party unauthorized cloud service, and I only had 4 IPs to choose from, and in the end, it was the IP of pastebin.com
+
+<img width="400" src="https://github.com/user-attachments/assets/4db9f414-56df-4e73-b30c-cd5d664bae8d"/>
+
+**Answer: 104.22.69.199**
+
+---
+
+## 🟩 Flag Flag 16 – PowerShell Downgrade Detection
+
+**Objective:**
+
+Spot PowerShell version manipulation to avoid logging.
+
+**What to Hunt:**
+
+`-Version 2` execution flag in process command lines.
+
+**Thought:**
+
+This signals AMSI evasion — it’s a red flag tactic to bypass modern defenses.
+
+ 🕵️ **When was a downgrade attempt executed?**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "centralsrvr"
+| where ProcessCommandLine contains "-Version 2"
+```
+
+🧠 **Thought process:** This was a pretty straightforward flag since the hints gave away what to look for. Once I queried the -Version 2 in the process command line, I had my answer.
+
+<img width="400" src="https://github.com/user-attachments/assets/a501e571-2329-48cf-8df4-edbbb27855ef"/>
+
+**Answer: 2025-06-18T10:52:59.0847063Z**
+
+---
+
+## 🟩 Flag 17 – Log Clearing Attempt
+
+**Objective:**
+
+Catch attacker efforts to cover their tracks.
+
+**What to Hunt:**
+
+Use of `wevtutil cl Security` to clear event logs.
+
+**Thought:**
+
+Cleaning logs shows intent to persist without a trace — it's often one of the final steps before attacker exit.
+
+ 🕵️ **Identify the process creation date**
+
+Query used:
+
+```
+DeviceProcessEvents
+| where DeviceName == "centralsrvr"
+| where ProcessCommandLine has_any ("wevtutil", "cl Security")
+```
+
+🧠 **Thought process:** The last flag was, at a glance, very simple, but it had a little twist to it. I found what I was looking for immediately, but I had trouble giving in the right time. The question was set as "identifying the process creation time" and not just a Timestamp. At a glance, these two times look the same, so I always just posted the Timestamp time, but after countless hours of questioning myself, I realized what the question is actually asking for.
+
+<img width="400" src="https://github.com/user-attachments/assets/460a7771-351e-4171-9ef6-dbf9118880ad"/>
+
+**Answer: 2025-06-18T10:52:33.3030998Z**
+
+---
 
 ✅ Conclusion
 The attacker leveraged native tools and LOLBins to evade detection, accessed high-value documents, and stealthily exfiltrated them while maintaining persistence. The clean logs indicate deliberate obfuscation and anti-forensic effort.
@@ -416,7 +685,5 @@ The attacker leveraged native tools and LOLBins to evade detection, accessed hig
 	•	Alert on suspicious scheduled task creation
 	•	Monitor public cloud uploads (e.g. Dropbox, Pastebin)
 
-🧾 Attribution
-Threat simulation: Red Team Exercise Analysis: [Your Name] 📁 Repo: github.com/yourhandle/threat-hunting
 
 “Attackers hide in noise. But sometimes, they hide in silence.”
